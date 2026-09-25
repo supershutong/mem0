@@ -116,6 +116,9 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 HISTORY_DB_PATH = os.environ.get("HISTORY_DB_PATH", "/app/history/history.db")
 DEFAULT_LLM_MODEL = os.environ.get("MEM0_DEFAULT_LLM_MODEL", "gpt-5-mini")
 DEFAULT_EMBEDDER_MODEL = os.environ.get("MEM0_DEFAULT_EMBEDDER_MODEL", "text-embedding-3-small")
+# Must match the embedder's actual output dims; also drives the pgvector column width.
+# embedding-3 (zhipu) supports 256/512/1024/2048; unset falls back to mem0's 1536 default.
+DEFAULT_EMBEDDER_DIMS = os.environ.get("MEM0_EMBEDDER_DIMS")
 
 DEFAULT_CONFIG = {
     "version": "v1.1",
@@ -128,13 +131,23 @@ DEFAULT_CONFIG = {
             "user": POSTGRES_USER,
             "password": POSTGRES_PASSWORD,
             "collection_name": POSTGRES_COLLECTION_NAME,
+            # pgvector builds the vector column from this value (default 1536);
+            # it does NOT inherit the embedder's embedding_dims, so set both.
+            **({"embedding_model_dims": int(DEFAULT_EMBEDDER_DIMS)} if DEFAULT_EMBEDDER_DIMS else {}),
         },
     },
     "llm": {
         "provider": "openai",
         "config": {"api_key": OPENAI_API_KEY, "temperature": 0.2, "model": DEFAULT_LLM_MODEL},
     },
-    "embedder": {"provider": "openai", "config": {"api_key": OPENAI_API_KEY, "model": DEFAULT_EMBEDDER_MODEL}},
+    "embedder": {
+        "provider": "openai",
+        "config": {
+            "api_key": OPENAI_API_KEY,
+            "model": DEFAULT_EMBEDDER_MODEL,
+            **({"embedding_dims": int(DEFAULT_EMBEDDER_DIMS)} if DEFAULT_EMBEDDER_DIMS else {}),
+        },
+    },
     "history_db_path": HISTORY_DB_PATH,
 }
 
